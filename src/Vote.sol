@@ -10,38 +10,47 @@ contract SimpleVotingSystem is AccessControl {
         uint voteCount;
     }
 
-    enum WorkflowStatus { REGISTERCANDIDATES, FOUND_CANDIDATES, VOTE, COMPLETED }
-    WorkflowStatus public status;
+    enum WorkflowStatus { REGISTER_CANDIDATES, FOUND_CANDIDATES, VOTE, COMPLETED }
+    WorkflowStatus public currentStatus;
 
-    address public owner;
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     mapping(uint => Candidate) public candidates;
     mapping(address => bool) public voters;
     uint[] private candidateIds;
 
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant FOUNDER_ROLE = keccak256("FOUNDER_ROLE");
+    modifier onlyAdmin() {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Only an admin can perform this action");
+        _;
+    }
 
-    modifier onlyRole(bytes32 role) {
-        require(hasRole(role, msg.sender), "Restricted to specific role");
-        ;
+    modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only the contract owner can perform this action");
+        _;
+    }
+
+    modifier inStatus(WorkflowStatus _status) {
+        require(currentStatus == _status, "Invalid operation at current workflow status");
+        _;
     }
 
     constructor() {
-        owner = msg.sender;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
+        currentStatus = WorkflowStatus.REGISTER_CANDIDATES;
     }
 
-    function addCandidate(string memory _name) public onlyRole(ADMIN_ROLE) {
-        require(status == WorkflowStatus.REGISTER_CANDIDATES, "Not the right time to add candidates");
+    function setWorkflowStatus(WorkflowStatus _status) public onlyAdmin {
+        currentStatus = _status;
+    }
+
+    function addCandidate(string memory _name) public onlyAdmin inStatus(WorkflowStatus.REGISTER_CANDIDATES) {
         require(bytes(_name).length > 0, "Candidate name cannot be empty");
         uint candidateId = candidateIds.length + 1;
         candidates[candidateId] = Candidate(candidateId, _name, 0);
         candidateIds.push(candidateId);
     }
 
-    function vote(uint _candidateId) public {
-        require(status == WorkflowStatus.VOTE, "Voting is not active");
+    function vote(uint _candidateId) public inStatus(WorkflowStatus.VOTE) {
         require(!voters[msg.sender], "You have already voted");
         require(_candidateId > 0 && _candidateId <= candidateIds.length, "Invalid candidate ID");
 
@@ -49,5 +58,18 @@ contract SimpleVotingSystem is AccessControl {
         candidates[_candidateId].voteCount += 1;
     }
 
-    // Implement other functions and modify as needed based on the tasks above
+    function getTotalVotes(uint _candidateId) public view returns (uint) {
+        require(_candidateId > 0 && _candidateId <= candidateIds.length, "Invalid candidate ID");
+        return candidates[_candidateId].voteCount;
+    }
+ 
+    function getCandidatesCount() public view returns (uint) {
+        return candidateIds.length;
+    }
+ 
+    // Optional: Function to get candidate details by ID
+    function getCandidate(uint _candidateId) public view returns (Candidate memory) {
+        require(_candidateId > 0 && _candidateId <= candidateIds.length, "Invalid candidate ID");
+        return candidates[_candidateId];
+    }
 }
