@@ -34,13 +34,17 @@ contract SimpleVotingSystem is AccessControl {
     }
 
     constructor() {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
         currentStatus = WorkflowStatus.REGISTER_CANDIDATES;
     }
 
     function setWorkflowStatus(WorkflowStatus _status) public onlyAdmin {
         currentStatus = _status;
+    }
+
+    function addAdmin(address account) public onlyAdmin {
+        grantRole(ADMIN_ROLE, account);
     }
 
     function addCandidate(string memory _name) public onlyAdmin inStatus(WorkflowStatus.REGISTER_CANDIDATES) {
